@@ -32,7 +32,7 @@
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/assume_abstract.hpp>
 
-#include <sophus/se3.hpp>
+#include "/home/rbayadi/Work/ORB_SLAM3/Thirdparty/Sophus/sophus/se3.hpp"
 
 #include <Eigen/Geometry>
 
