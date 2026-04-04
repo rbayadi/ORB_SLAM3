@@ -3,6 +3,10 @@ pathDatasetTUM_VI='/home/rbayadi/Work/Data/TUM' #Example, it is necesary to chan
 
 #------------------------------------
 # Monocular Examples
-echo "Launching Room 1 with Monocular sensor"
-./Examples/Monocular/mono_tum_vi Vocabulary/ORBvoc.txt Examples/Monocular/TUM-VI.yaml "$pathDatasetTUM_VI"/dataset-corridor4_512_16/mav0/cam0/data Examples/Monocular/TUM_TimeStamps/dataset-corridor4_512.txt dataset-corridor4_512_mono
+# ./Examples/Monocular/mono_tum_vi Vocabulary/ORBvoc.txt Examples/Monocular/TUM-VI.yaml "$pathDatasetTUM_VI"/dataset-corridor4_512_16/mav0/cam0/data Examples/Monocular/TUM_TimeStamps/dataset-corridor4_512.txt dataset-corridor4_512_mono
+# ./Examples/Monocular/mono_tum_vi Vocabulary/ORBvoc.txt Examples/Monocular/TUM-VI.yaml "$pathDatasetTUM_VI"/dataset-slides2_512_16/mav0/cam0/data Examples/Monocular/TUM_TimeStamps/dataset-slides2_512.txt dataset-slides2_512_mono
+
+# Monocular Inertial Examples
+./Examples/Monocular-Inertial/mono_inertial_tum_vi Vocabulary/ORBvoc.txt Examples/Monocular-Inertial/TUM-VI.yaml "$pathDatasetTUM_VI"/dataset-corridor4_512_16/mav0/cam0/data Examples/Monocular/TUM_TimeStamps/dataset-corridor4_512.txt /home/rbayadi/Work/ORB_SLAM3/Examples/Monocular-Inertial/TUM_IMU/dataset-corridor4_512.txt dataset-corridor4_512_mono_inertial
+# ./Examples/Monocular-Inertial/mono_inertial_tum_vi Vocabulary/ORBvoc.txt Examples/Monocular-Inertial/TUM-VI.yaml "$pathDatasetTUM_VI"/dataset-slides2_512_16/mav0/cam0/data Examples/Monocular/TUM_TimeStamps/dataset-slides2_512.txt /home/rbayadi/Work/ORB_SLAM3/Examples/Monocular-Inertial/TUM_IMU/dataset-slides2_512.txt dataset-slides2_512_mono_inertial
 

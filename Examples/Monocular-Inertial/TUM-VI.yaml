@@ -47,6 +47,8 @@ IMU.GyroWalk: 0.000022 # rad/s^1.5
 IMU.AccWalk: 0.00086 # m/s^2.5
 IMU.Frequency: 200.0
 
+# Loop closing enable
+loopClosing: 1
 
 #--------------------------------------------------------------------------------------------
 # ORB Parameters

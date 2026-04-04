@@ -90,6 +90,7 @@ void LoopClosing::SetLocalMapper(LocalMapping *pLocalMapper)
 void LoopClosing::Run()
 {
     mbFinished =false;
+    cout << "Running loop closure" << std::endl;
 
     while(1)
     {
@@ -207,6 +208,7 @@ void LoopClosing::Run()
 
                     if(mbLoopDetected)
                     {
+                        cout << "Loop detected" << std::endl;
                         // Reset Loop variables
                         mpLoopLastCurrentKF->SetErase();
                         mpLoopMatchedKF->SetErase();
@@ -1207,7 +1209,8 @@ void LoopClosing::CorrectLoop()
     }
 
     // Loop closed. Release Local Mapping.
-    mpLocalMapper->Release();    
+    mpLocalMapper->Release();
+    cout << "Loop closed successfully" << std::endl;
 
     mLastLoopKFid = mpCurrentKF->mnId; //TODO old varible, it is not use in the new algorithm
 }
