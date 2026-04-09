@@ -3340,9 +3340,9 @@ void Tracking::CreateNewKeyFrame()
     mpLastKeyFrame = pKF;
     Sophus::SE3f Tcw = pKF->GetPose();
     Sophus::SE3f Twc = Tcw.inverse();
-    Eigen::Vector3f twc = Tcw.translation();
+    Eigen::Vector3f twc = Twc.translation();
 
-    std::cout <<  setprecision(9) << twc(0) << ", " << twc(1) << ", " << twc(2) << std::endl;
+    // std::cout <<  setprecision(9) << twc(0) << ", " << twc(1) << ", " << twc(2) << std::endl;
 }
 
 void Tracking::SearchLocalPoints()

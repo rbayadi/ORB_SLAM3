@@ -90,7 +90,6 @@ void LoopClosing::SetLocalMapper(LocalMapping *pLocalMapper)
 void LoopClosing::Run()
 {
     mbFinished =false;
-    cout << "Running loop closure" << std::endl;
 
     while(1)
     {
@@ -208,7 +207,6 @@ void LoopClosing::Run()
 
                     if(mbLoopDetected)
                     {
-                        cout << "Loop detected" << std::endl;
                         // Reset Loop variables
                         mpLoopLastCurrentKF->SetErase();
                         mpLoopMatchedKF->SetErase();
@@ -614,6 +612,7 @@ bool LoopClosing::DetectCommonRegionsFromBoW(std::vector<KeyFrame*> &vpBowCand, 
 
         // std::cout << "KF candidate: " << pKFi->mnId << std::endl;
         // Current KF against KF with covisibles version
+        // @rbayadi: vpCovKFi contains the keyframes co-visble to the current keyframe under consideration
         std::vector<KeyFrame*> vpCovKFi = pKFi->GetBestCovisibilityKeyFrames(nNumCovisibles);
         if(vpCovKFi.empty())
         {
@@ -643,9 +642,12 @@ bool LoopClosing::DetectCommonRegionsFromBoW(std::vector<KeyFrame*> &vpBowCand, 
         }
         //std::cout << "Check BoW continue because is far to the matched one " << std::endl;
 
-
+        // @rbayadi: vvpMatchedMPs is the vector (along keyframes) of vector of map points matching with those in
+        // pKFi
         std::vector<std::vector<MapPoint*> > vvpMatchedMPs;
         vvpMatchedMPs.resize(vpCovKFi.size());
+
+        // @rbayadi: This spMatchedMPi will the container for all the map points matches across keyframes
         std::set<MapPoint*> spMatchedMPi;
         int numBoWMatches = 0;
 
@@ -661,6 +663,8 @@ bool LoopClosing::DetectCommonRegionsFromBoW(std::vector<KeyFrame*> &vpBowCand, 
             if(!vpCovKFi[j] || vpCovKFi[j]->isBad())
                 continue;
 
+            // @rbayadi: This function searches for the map point matches in vpCovKFi and pushes the pointers
+            // to the map points to the appropriate place in vvpMatchedMPs
             int num = matcherBoW.SearchByBoW(mpCurrentKF, vpCovKFi[j], vvpMatchedMPs[j]);
             if (num > nMostBoWNumMatches)
             {
@@ -679,9 +683,12 @@ bool LoopClosing::DetectCommonRegionsFromBoW(std::vector<KeyFrame*> &vpBowCand, 
 
                 if(spMatchedMPi.find(pMPi_j) == spMatchedMPi.end())
                 {
+                    // If map point is not already in spMatchedMPi, insert it
                     spMatchedMPi.insert(pMPi_j);
                     numBoWMatches++;
 
+                    // @rbayadi: This is clearly a bug! The points in the vector vpMatchedPoints are getting overwritten!
+                    // @rbayadi ToDo: What should be done about this?
                     vpMatchedPoints[k]= pMPi_j;
                     vpKeyFrameMatchedMP[k] = vpCovKFi[j];
                 }
@@ -710,10 +717,17 @@ bool LoopClosing::DetectCommonRegionsFromBoW(std::vector<KeyFrame*> &vpBowCand, 
                 mTcm = solver.iterate(20,bNoMore, vbInliers, nInliers, bConverge);
                 //Verbose::PrintMess("BoW guess: Solver achieve " + to_string(nInliers) + " geometrical inliers among " + to_string(nBoWInliers) + " BoW matches", Verbose::VERBOSITY_DEBUG);
             }
+            std::cout << "BOW matches and RANSAC inliers: " << numBoWMatches << ", " << nInliers << endl;
 
             if(bConverge)
             {
-                //std::cout << "Check BoW: SolverSim3 converged" << std::endl;
+                // @rbayadi: If converged, now the mTcm will have the transformation between the current keyframe 
+                // and the covisibility keyframes of the BoW candidate. Note that the BoW candidate can be temporally
+                // away from the current keyframe (which should be the case for loop closing)
+
+                // @rbayadi: In the next lines, the trasformation mTcm is used to transform the map points in the 
+                // covisible keyframes to the current keyframe and look for matches. This is as explained in the paper.
+                std::cout << "Check BoW: SolverSim3 converged. Inliers: " << nInliers << std::endl;
 
                 //Verbose::PrintMess("BoW guess: Convergende with " + to_string(nInliers) + " geometrical inliers among " + to_string(nBoWInliers) + " BoW matches", Verbose::VERBOSITY_DEBUG);
                 // Match by reprojection
@@ -757,6 +771,8 @@ bool LoopClosing::DetectCommonRegionsFromBoW(std::vector<KeyFrame*> &vpBowCand, 
                 int numProjMatches = matcher.SearchByProjection(mpCurrentKF, mScw, vpMapPoints, vpKeyFrames, vpMatchedMP, vpMatchedKF, 8, 1.5);
                 //cout <<"BoW: " << numProjMatches << " matches between " << vpMapPoints.size() << " points with coarse Sim3" << endl;
 
+                // @rbayadi: Good number of matches found, hence optimize the transformation.
+                // @rbayadi ToDo: Find out how the optimization is done!
                 if(numProjMatches >= nProjMatches)
                 {
                     // Optimize Sim3 transformation with every matches
@@ -780,40 +796,6 @@ bool LoopClosing::DetectCommonRegionsFromBoW(std::vector<KeyFrame*> &vpBowCand, 
 
                         if(numProjOptMatches >= nProjOptMatches)
                         {
-                            int max_x = -1, min_x = 1000000;
-                            int max_y = -1, min_y = 1000000;
-                            for(MapPoint* pMPi : vpMatchedMP)
-                            {
-                                if(!pMPi || pMPi->isBad())
-                                {
-                                    continue;
-                                }
-
-                                tuple<size_t,size_t> indexes = pMPi->GetIndexInKeyFrame(pKFi);
-                                int index = get<0>(indexes);
-                                if(index >= 0)
-                                {
-                                    int coord_x = pKFi->mvKeysUn[index].pt.x;
-                                    if(coord_x < min_x)
-                                    {
-                                        min_x = coord_x;
-                                    }
-                                    if(coord_x > max_x)
-                                    {
-                                        max_x = coord_x;
-                                    }
-                                    int coord_y = pKFi->mvKeysUn[index].pt.y;
-                                    if(coord_y < min_y)
-                                    {
-                                        min_y = coord_y;
-                                    }
-                                    if(coord_y > max_y)
-                                    {
-                                        max_y = coord_y;
-                                    }
-                                }
-                            }
-
                             int nNumKFs = 0;
                             //vpMatchedMPs = vpMatchedMP;
                             //vpMPs = vpMapPoints;
@@ -1210,7 +1192,6 @@ void LoopClosing::CorrectLoop()
 
     // Loop closed. Release Local Mapping.
     mpLocalMapper->Release();
-    cout << "Loop closed successfully" << std::endl;
 
     mLastLoopKFid = mpCurrentKF->mnId; //TODO old varible, it is not use in the new algorithm
 }

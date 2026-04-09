@@ -603,10 +603,14 @@ bool compFirst(const pair<float, KeyFrame*> & a, const pair<float, KeyFrame*> & 
 
 void KeyFrameDatabase::DetectNBestCandidates(KeyFrame *pKF, vector<KeyFrame*> &vpLoopCand, vector<KeyFrame*> &vpMergeCand, int nNumCandidates)
 {
+    // @rbayadi: lKFsSharingWords will be now used to push all the keyframes containg any of the visual words
+    // in the current keyframe
     list<KeyFrame*> lKFsSharingWords;
     set<KeyFrame*> spConnectedKF;
 
-    // Search all keyframes that share a word with current frame
+    // Search all keyframes that share a word with current frame within all the connected keyframes
+    // @rbayadi: I think 'connected' means that they should be in the same map. Need not necessarily in the
+    // covisibility graph. Need to verify this.
     {
         unique_lock<mutex> lock(mMutex);
 
@@ -630,6 +634,8 @@ void KeyFrameDatabase::DetectNBestCandidates(KeyFrame *pKF, vector<KeyFrame*> &v
                         lKFsSharingWords.push_back(pKFi);
                     }
                 }
+                // @rbayadi: The current visual word has been found in pKFi. Hence, increment the
+                // number of place recognition word within it
                 pKFi->mnPlaceRecognitionWords++;
             }
         }
@@ -637,7 +643,7 @@ void KeyFrameDatabase::DetectNBestCandidates(KeyFrame *pKF, vector<KeyFrame*> &v
     if(lKFsSharingWords.empty())
         return;
 
-    // Only compare against those keyframes that share enough words
+    // @rbayadi: Get maximum number of common words
     int maxCommonWords=0;
     for(list<KeyFrame*>::iterator lit=lKFsSharingWords.begin(), lend= lKFsSharingWords.end(); lit!=lend; lit++)
     {
@@ -645,8 +651,13 @@ void KeyFrameDatabase::DetectNBestCandidates(KeyFrame *pKF, vector<KeyFrame*> &v
             maxCommonWords=(*lit)->mnPlaceRecognitionWords;
     }
 
+    // @rbayadi: This number will be used to compare only compare against those keyframes 
+    // that share enough words
     int minCommonWords = maxCommonWords*0.8f;
 
+    // @rbayadi: lScoreAndMatch will be now populated with the bag of words histogram match (score) between the
+    // current keyframe and those keyframes from lKFsSharingWords. This will be done only
+    // if the number of common words exceeds the threshold minCommonWords
     list<pair<float,KeyFrame*> > lScoreAndMatch;
 
     int nscores=0;
@@ -671,6 +682,8 @@ void KeyFrameDatabase::DetectNBestCandidates(KeyFrame *pKF, vector<KeyFrame*> &v
     list<pair<float,KeyFrame*> > lAccScoreAndMatch;
     float bestAccScore = 0;
 
+    // @rbayadi: Next for every keyframe in lScoreAndMatch, we check the best 10 covisbility neighbors.
+
     // Lets now accumulate score by covisibility
     for(list<pair<float,KeyFrame*> >::iterator it=lScoreAndMatch.begin(), itend=lScoreAndMatch.end(); it!=itend; it++)
     {
@@ -683,6 +696,9 @@ void KeyFrameDatabase::DetectNBestCandidates(KeyFrame *pKF, vector<KeyFrame*> &v
         for(vector<KeyFrame*>::iterator vit=vpNeighs.begin(), vend=vpNeighs.end(); vit!=vend; vit++)
         {
             KeyFrame* pKF2 = *vit;
+            // @rbayadi: Since mnPlaceRecognitionQuery only gets populated if there is a visual word match,
+            // the below condition will eliminate those which do not share any visual word with
+            // the current keyframe
             if(pKF2->mnPlaceRecognitionQuery!=pKF->mnId)
                 continue;
 
