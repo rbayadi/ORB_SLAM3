@@ -23,7 +23,7 @@
 #include <Eigen/Core>
 #include <unordered_set>
 
-#include "/home/rbayadi/Work/ORB_SLAM3/Thirdparty/Sophus/sophus/se3.hpp"
+#include "sophus/se3.hpp"
 
 namespace ORB_SLAM3
 {

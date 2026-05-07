@@ -37,7 +37,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "Eigen/Core"
-#include "/home/rbayadi/Work/ORB_SLAM3/Thirdparty/Sophus/sophus/se3.hpp"
+#include "sophus/se3.hpp"
 
 namespace ORB_SLAM3
 {
@@ -67,11 +67,20 @@ public:
     // Constructor for Monocular cameras.
     Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, Frame* pPrevF = static_cast<Frame*>(NULL), const IMU::Calib &ImuCalib = IMU::Calib());
 
+    // Constructor for Monocular cameras with previous keypoints.
+    Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, 
+        std::vector<std::vector<cv::KeyPoint>>& prevLevelKeyPoints,
+        Frame* pPrevF = static_cast<Frame*>(NULL), const IMU::Calib &ImuCalib = IMU::Calib());
+
     // Destructor
     // ~Frame();
 
     // Extract ORB on the image. 0 for left image and 1 for right image.
     void ExtractORB(int flag, const cv::Mat &im, const int x0, const int x1);
+
+    // Extract ORB on the image. 0 for left image and 1 for right image.
+    void GuidedExtractORB(int flag, const cv::Mat &im, const int x0, const int x1,
+    std::vector<std::vector<cv::KeyPoint>>& prevLevelKeyPoints);
 
     // Compute Bag of Words representation.
     void ComputeBoW();

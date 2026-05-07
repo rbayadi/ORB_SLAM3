@@ -261,6 +261,9 @@ protected:
     ORBextractor* mpORBextractorLeft, *mpORBextractorRight;
     ORBextractor* mpIniORBextractor;
 
+    // Previous frame (distorted) keypoints
+    std::vector<std::vector<cv::KeyPoint>> mvvPrevKeyPoints;
+
     //BoW
     ORBVocabulary* mpORBVocabulary;
     KeyFrameDatabase* mpKeyFrameDB;
