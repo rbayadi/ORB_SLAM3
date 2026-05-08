@@ -96,7 +96,7 @@ protected:
     void ComputePyramid(cv::Mat image);
     void ComputeKeyPointsOctTree(std::vector<std::vector<cv::KeyPoint> >& allKeypoints);    
     void GuidedComputeKeyPointsOctTree(std::vector<std::vector<cv::KeyPoint> >& allKeypoints,
-    const std::vector<std::vector<cv::KeyPoint> >& prevKeypoints);
+    std::vector<std::vector<cv::KeyPoint> >& prevKeypoints);
     std::vector<cv::KeyPoint> DistributeOctTree(const std::vector<cv::KeyPoint>& vToDistributeKeys, const int &minX,
                                            const int &maxX, const int &minY, const int &maxY, const int &nFeatures, const int &level);
 

@@ -784,6 +784,7 @@ namespace ORB_SLAM3
 
         const float W = 35;
 
+        auto time0 = std::chrono::steady_clock::now();
         for (int level = 0; level < nlevels; ++level)
         {
             const int minBorderX = EDGE_THRESHOLD-3;
@@ -863,6 +864,9 @@ namespace ORB_SLAM3
                 keypoints[i].size = scaledPatchSize;
             }
         }
+        auto time1 = std::chrono::steady_clock::now();
+        auto keyPointDuration = std::chrono::duration_cast<std::chrono::duration<double, milli>> (time1 - time0).count();
+        cout << "Keypoint time: " << keyPointDuration << endl;
 
         // compute orientations
         for (int level = 0; level < nlevels; ++level)
@@ -871,7 +875,7 @@ namespace ORB_SLAM3
     
     void ORBextractor::GuidedComputeKeyPointsOctTree(
         vector<vector<KeyPoint>>& allKeypoints,
-        const vector<vector<KeyPoint>>& prevKeypoints)
+        vector<vector<KeyPoint>>& prevKeypoints)
     {
         allKeypoints.resize(nlevels);
         const float W = 35;
@@ -879,8 +883,11 @@ namespace ORB_SLAM3
         // -------------------------
         // Level 0: regular extraction (unchanged)
         // -------------------------
+
+        auto time0 = std::chrono::steady_clock::now();
+        const int levelsForFullExtr = prevKeypoints.empty() ? nlevels : 1;
+        for (int level = 0; level < levelsForFullExtr; ++level)
         {
-            const int level = 0;
             const int minBorderX = EDGE_THRESHOLD - 3;
             const int minBorderY = minBorderX;
             const int maxBorderX = mvImagePyramid[level].cols - EDGE_THRESHOLD + 3;
@@ -952,72 +959,82 @@ namespace ORB_SLAM3
             }
         }
 
-        // -------------------------
-        // Levels 1-7: guided extraction
-        // -------------------------
-        const int HALF_PATCH = 6;
-
-        for(int level = 1; level < nlevels; ++level)
+        int prevKeyPointsCnt = 0;
+        int extrKeyPointsCnt = 0;
+        if ((levelsForFullExtr == 1) && (!(prevKeypoints.empty())))
         {
-            const int minBorderX = EDGE_THRESHOLD - 3;
-            const int minBorderY = minBorderX;
-            const int maxBorderX = mvImagePyramid[level].cols - EDGE_THRESHOLD + 3;
-            const int maxBorderY = mvImagePyramid[level].rows - EDGE_THRESHOLD + 3;
+            // -------------------------
+            // Levels 1-7: guided extraction
+            // -------------------------
+            const int HALF_PATCH = 5;
 
-            const vector<KeyPoint>& seedKps = prevKeypoints[level - 1];
-
-            vector<KeyPoint>& keypoints = allKeypoints[level];
-            keypoints.reserve(seedKps.size());
-
-            const int scaledPatchSize = PATCH_SIZE * mvScaleFactor[level];
-
-            for(const auto& seed : seedKps)
+            for(int level = 1; level < nlevels; ++level)
             {
-                const float cx = seed.pt.x / mvScaleFactor[1];
-                const float cy = seed.pt.y / mvScaleFactor[1];
+                const int minBorderX = HALF_PATCH - 3;
+                const int minBorderY = minBorderX;
+                const int maxBorderX = mvImagePyramid[level].cols - HALF_PATCH + 3;
+                const int maxBorderY = mvImagePyramid[level].rows - HALF_PATCH + 3;
 
-                int px0 = (int)round(cx) - HALF_PATCH;
-                int py0 = (int)round(cy) - HALF_PATCH;
-                int px1 = px0 + 2 * HALF_PATCH + 1;
-                int py1 = py0 + 2 * HALF_PATCH + 1;
+                const vector<KeyPoint>& seedKps = prevKeypoints[level - 1];
 
-                px0 = max(px0, minBorderX);
-                py0 = max(py0, minBorderY);
-                px1 = min(px1, maxBorderX);
-                py1 = min(py1, maxBorderY);
+                vector<KeyPoint>& keypoints = allKeypoints[level];
+                keypoints.reserve(seedKps.size());
 
-                if(px1 <= px0 || py1 <= py0)
-                    continue;
+                const int scaledPatchSize = 2 * HALF_PATCH * 1.2f;
 
-                vector<cv::KeyPoint> vKeysCell;
-                FAST(mvImagePyramid[level].rowRange(py0, py1).colRange(px0, px1),
-                    vKeysCell, iniThFAST, true);
-                if(vKeysCell.empty())
+                for(const auto& seed : seedKps)
                 {
+                    prevKeyPointsCnt++;
+                    const float cx = seed.pt.x / 1.2f;
+                    const float cy = seed.pt.y / 1.2f;
+
+                    int px0 = (int)round(cx) - HALF_PATCH;
+                    int py0 = (int)round(cy) - HALF_PATCH;
+                    int px1 = px0 + 2 * HALF_PATCH + 1;
+                    int py1 = py0 + 2 * HALF_PATCH + 1;
+
+                    px0 = max(px0, minBorderX);
+                    py0 = max(py0, minBorderY);
+                    px1 = min(px1, maxBorderX);
+                    py1 = min(py1, maxBorderY);
+
+                    if ((px0 < minBorderX) || (px1 > maxBorderX) || 
+                        (py0 < minBorderY) || (py1 > maxBorderY))
+                        continue;
+
+                    if(px1 <= px0 || py1 <= py0)
+                        continue;
+
+                    vector<cv::KeyPoint> vKeysCell;
                     FAST(mvImagePyramid[level].rowRange(py0, py1).colRange(px0, px1),
-                        vKeysCell, minThFAST, true);
-                }
+                        vKeysCell, iniThFAST, true);
 
-                if(!vKeysCell.empty())
-                {
-                    // keep only best response within patch
-                    cv::KeyPoint* pBest = &vKeysCell[0];
-                    for(size_t k = 1; k < vKeysCell.size(); k++)
+                    if(!vKeysCell.empty())
                     {
-                        if(vKeysCell[k].response > pBest->response)
-                            pBest = &vKeysCell[k];
-                    }
+                        // keep only best response within patch
+                        cv::KeyPoint* pBest = &vKeysCell[0];
+                        for(size_t k = 1; k < vKeysCell.size(); k++)
+                        {
+                            if(vKeysCell[k].response > pBest->response)
+                                pBest = &vKeysCell[k];
+                        }
 
-                    // shift to level j image coords and add border
-                    pBest->pt.x  += px0 + minBorderX;
-                    pBest->pt.y  += py0 + minBorderY;
-                    pBest->octave = level;
-                    pBest->size   = scaledPatchSize;
-                    keypoints.push_back(*pBest);
+                        // shift to level j image coords and add border
+                        pBest->pt.x  += px0;
+                        pBest->pt.y  += py0;
+                        pBest->octave = level;
+                        pBest->size   = scaledPatchSize;
+                        keypoints.push_back(*pBest);
+                        extrKeyPointsCnt++;
+                    }
                 }
             }
         }
+        auto time1 = std::chrono::steady_clock::now();
+        auto extractTime = std::chrono::duration_cast<std::chrono::duration<double, milli>> (time1 - time0).count();
+        cout << "Guided extraction time: " << extractTime << endl;
 
+        prevKeypoints = allKeypoints;
         // compute orientations for all levels
         for(int level = 0; level < nlevels; ++level)
             computeOrientation(mvImagePyramid[level], allKeypoints[level], umax);    
@@ -1309,7 +1326,8 @@ namespace ORB_SLAM3
         ComputePyramid(image);
 
         vector < vector<KeyPoint> > allKeypoints;
-        ComputeKeyPointsOctTree(allKeypoints);
+        GuidedComputeKeyPointsOctTree(allKeypoints,prevLevelKeyPoints);
+        prevLevelKeyPoints = allKeypoints;
         //ComputeKeyPointsOld(allKeypoints);
 
         Mat descriptors;
