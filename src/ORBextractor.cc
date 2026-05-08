@@ -875,7 +875,8 @@ namespace ORB_SLAM3
     
     void ORBextractor::GuidedComputeKeyPointsOctTree(
         vector<vector<KeyPoint>>& allKeypoints,
-        vector<vector<KeyPoint>>& prevKeypoints)
+        vector<vector<KeyPoint>>& prevKeypoints, 
+        const cv::Point2i motionComp)
     {
         allKeypoints.resize(nlevels);
         const float W = 35;
@@ -970,6 +971,9 @@ namespace ORB_SLAM3
 
             for(int level = 1; level < nlevels; ++level)
             {
+                float du_level = motionComp.x / mvScaleFactor[level - 1];
+                float dv_level = motionComp.y / mvScaleFactor[level - 1];
+
                 const int minBorderX = HALF_PATCH;
                 const int minBorderY = minBorderX;
                 const int maxBorderX = mvImagePyramid[level].cols - HALF_PATCH;
@@ -985,8 +989,8 @@ namespace ORB_SLAM3
                 for(const auto& seed : seedKps)
                 {
                     prevKeyPointsCnt++;
-                    const float cx = seed.pt.x / 1.2f;
-                    const float cy = seed.pt.y / 1.2f;
+                    const float cx = (seed.pt.x + du_level) / 1.2f;
+                    const float cy = (seed.pt.y + dv_level) / 1.2f;
 
                     int px0 = (int)round(cx) - HALF_PATCH;
                     int py0 = (int)round(cy) - HALF_PATCH;
@@ -1313,7 +1317,8 @@ namespace ORB_SLAM3
     }
     int ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints,
                                   OutputArray _descriptors, std::vector<int> &vLappingArea,
-                                  std::vector<std::vector<cv::KeyPoint>>& prevLevelKeyPoints)
+                                  std::vector<std::vector<cv::KeyPoint>>& prevLevelKeyPoints, 
+                                  const cv::Point2i motionComp)
     {
         //cout << "[ORBextractor]: Max Features: " << nfeatures << endl;
         if(_image.empty())
@@ -1326,7 +1331,7 @@ namespace ORB_SLAM3
         ComputePyramid(image);
 
         vector < vector<KeyPoint> > allKeypoints;
-        GuidedComputeKeyPointsOctTree(allKeypoints,prevLevelKeyPoints);
+        GuidedComputeKeyPointsOctTree(allKeypoints,prevLevelKeyPoints,motionComp);
         prevLevelKeyPoints = allKeypoints;
         //ComputeKeyPointsOld(allKeypoints);
 

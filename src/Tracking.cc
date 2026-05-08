@@ -33,7 +33,7 @@
 
 #include <mutex>
 #include <chrono>
-
+#include <opencv2/core/eigen.hpp>
 
 using namespace std;
 
@@ -1582,13 +1582,27 @@ Sophus::SE3f Tracking::GrabImageMonocular(const cv::Mat &im, const double &times
             cvtColor(mImGray,mImGray,cv::COLOR_BGRA2GRAY);
     }
 
+    // extract rotation matrix from Sophus SE3f
+    Eigen::Matrix3f R_vel = mVelocity.rotationMatrix();
+
+    // convert to cv::Mat for Rodrigues
+    cv::Mat R_cv;
+    cv::eigen2cv(R_vel, R_cv);
+
+    cv::Mat rvec;
+    cv::Rodrigues(R_cv, rvec);
+    float delta_yaw = rvec.at<float>(1);
+    int du = static_cast<int>(mCurrentFrame.fx * delta_yaw);
+    int dv = 0;    
+    const cv::Point2i motionComp(du, dv);
+    
     if (mSensor == System::MONOCULAR)
     {
         if(mState==NOT_INITIALIZED || mState==NO_IMAGES_YET ||(lastID - initID) < mMaxFrames)
             mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mpCamera,mDistCoef,mbf,mThDepth);
         else
             mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mpORBVocabulary,mpCamera,mDistCoef,mbf,mThDepth,
-            mvvPrevKeyPoints);
+            mvvPrevKeyPoints, motionComp);
     }
     else if(mSensor == System::IMU_MONOCULAR)
     {

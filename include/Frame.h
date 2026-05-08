@@ -69,7 +69,7 @@ public:
 
     // Constructor for Monocular cameras with previous keypoints.
     Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, 
-        std::vector<std::vector<cv::KeyPoint>>& prevLevelKeyPoints,
+        std::vector<std::vector<cv::KeyPoint>>& prevLevelKeyPoints, const cv::Point2i motionComp,
         Frame* pPrevF = static_cast<Frame*>(NULL), const IMU::Calib &ImuCalib = IMU::Calib());
 
     // Destructor
@@ -80,7 +80,7 @@ public:
 
     // Extract ORB on the image. 0 for left image and 1 for right image.
     void GuidedExtractORB(int flag, const cv::Mat &im, const int x0, const int x1,
-    std::vector<std::vector<cv::KeyPoint>>& prevLevelKeyPoints);
+    std::vector<std::vector<cv::KeyPoint>>& prevLevelKeyPoints, const cv::Point2i motionComp);
 
     // Compute Bag of Words representation.
     void ComputeBoW();

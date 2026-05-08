@@ -383,7 +383,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
 
 
 Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, 
-    std::vector<std::vector<cv::KeyPoint>>& prevLevelKeyPoints,
+    std::vector<std::vector<cv::KeyPoint>>& prevLevelKeyPoints, const cv::Point2i motionComp,
     Frame* pPrevF, const IMU::Calib &ImuCalib)
     :mpcpi(NULL),mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(static_cast<Pinhole*>(pCamera)->toK()), mK_(static_cast<Pinhole*>(pCamera)->toK_()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
@@ -406,7 +406,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
 #ifdef REGISTER_TIMES
     std::chrono::steady_clock::time_point time_StartExtORB = std::chrono::steady_clock::now();
 #endif
-    GuidedExtractORB(0,imGray,0,1000,prevLevelKeyPoints);
+    GuidedExtractORB(0,imGray,0,1000,prevLevelKeyPoints, motionComp);
 #ifdef REGISTER_TIMES
     std::chrono::steady_clock::time_point time_EndExtORB = std::chrono::steady_clock::now();
 
@@ -522,11 +522,11 @@ void Frame::ExtractORB(int flag, const cv::Mat &im, const int x0, const int x1)
 }
 
 void Frame::GuidedExtractORB(int flag, const cv::Mat &im, const int x0, const int x1,
-std::vector<std::vector<cv::KeyPoint>>& prevLevelKeyPoints)
+std::vector<std::vector<cv::KeyPoint>>& prevLevelKeyPoints, const cv::Point2i motionComp)
 {
     vector<int> vLapping = {x0,x1};
     if(flag==0)
-        monoLeft = (*mpORBextractorLeft)(im,cv::Mat(),mvKeys,mDescriptors,vLapping,prevLevelKeyPoints);
+        monoLeft = (*mpORBextractorLeft)(im,cv::Mat(),mvKeys,mDescriptors,vLapping,prevLevelKeyPoints,motionComp);
     else
         monoRight = (*mpORBextractorRight)(im,cv::Mat(),mvKeysRight,mDescriptorsRight,vLapping);
 }
