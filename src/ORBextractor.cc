@@ -970,10 +970,10 @@ namespace ORB_SLAM3
 
             for(int level = 1; level < nlevels; ++level)
             {
-                const int minBorderX = HALF_PATCH - 3;
+                const int minBorderX = HALF_PATCH;
                 const int minBorderY = minBorderX;
-                const int maxBorderX = mvImagePyramid[level].cols - HALF_PATCH + 3;
-                const int maxBorderY = mvImagePyramid[level].rows - HALF_PATCH + 3;
+                const int maxBorderX = mvImagePyramid[level].cols - HALF_PATCH;
+                const int maxBorderY = mvImagePyramid[level].rows - HALF_PATCH;
 
                 const vector<KeyPoint>& seedKps = prevKeypoints[level - 1];
 
