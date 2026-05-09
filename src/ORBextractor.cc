@@ -960,6 +960,7 @@ namespace ORB_SLAM3
             }
         }
 
+        auto time1 = std::chrono::steady_clock::now();
         int prevKeyPointsCnt = 0;
         int extrKeyPointsCnt = 0;
         if ((levelsForFullExtr == 1) && (!(prevKeypoints.empty())))
@@ -1012,6 +1013,10 @@ namespace ORB_SLAM3
                     vector<cv::KeyPoint> vKeysCell;
                     FAST(mvImagePyramid[level].rowRange(py0, py1).colRange(px0, px1),
                         vKeysCell, iniThFAST, true);
+                    
+                    if (vKeysCell.empty())
+                        FAST(mvImagePyramid[level].rowRange(py0, py1).colRange(px0, px1),
+                            vKeysCell, minThFAST, true);
 
                     if(!vKeysCell.empty())
                     {
@@ -1034,9 +1039,11 @@ namespace ORB_SLAM3
                 }
             }
         }
-        auto time1 = std::chrono::steady_clock::now();
-        auto extractTime = std::chrono::duration_cast<std::chrono::duration<double, milli>> (time1 - time0).count();
-        cout << "Guided extraction time: " << extractTime << endl;
+        auto time2 = std::chrono::steady_clock::now();
+        auto l1Time = std::chrono::duration_cast<std::chrono::duration<double, milli>> (time1 - time0).count();
+        auto remainTime = std::chrono::duration_cast<std::chrono::duration<double, milli>> (time2 - time1).count();
+        cout << "Guided extraction time: " << l1Time + remainTime << ", " << l1Time << ", " << remainTime 
+        << ", " << prevKeyPointsCnt << endl;
 
         prevKeypoints = allKeypoints;
         // compute orientations for all levels

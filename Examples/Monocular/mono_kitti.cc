@@ -112,6 +112,8 @@ int main(int argc, char **argv)
 #else
         std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
 #endif
+        cout << "Tracking time: " << chrono::duration_cast<chrono::duration<double, milli>> (t2 - t1).count() 
+        << endl << endl;
 
 #ifdef REGISTER_TIMES
             t_track = t_resize + std::chrono::duration_cast<std::chrono::duration<double,std::milli> >(t2 - t1).count();
