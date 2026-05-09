@@ -3049,7 +3049,7 @@ bool Tracking::TrackLocalMap()
     if((mnMatchesInliers>10)&&(mState==RECENTLY_LOST))
         return true;
 
-
+    cout << "Match inliers: " << mnMatchesInliers << endl;
     if (mSensor == System::IMU_MONOCULAR)
     {
         if((mnMatchesInliers<15 && mpAtlas->isImuInitialized())||(mnMatchesInliers<50 && !mpAtlas->isImuInitialized()))
@@ -3070,7 +3070,7 @@ bool Tracking::TrackLocalMap()
     }
     else
     {
-        if(mnMatchesInliers<30)
+        if(mnMatchesInliers<15)
             return false;
         else
             return true;

@@ -72,6 +72,77 @@ namespace ORB_SLAM3
     const int HALF_PATCH_SIZE = 15;
     const int EDGE_THRESHOLD = 19;
 
+    // Bresenham circle of radius 3 -- 16 pixel offsets
+    // (dx, dy) pairs, stride applied at runtime
+    static const int circle_dx[16] = { 0,  1,  2,  3,  3,  3,  2,  1,
+                                        0, -1, -2, -3, -3, -3, -2, -1};
+    static const int circle_dy[16] = { 3,  3,  2,  1,  0, -1, -2, -3,
+                                    -3, -3, -2, -1,  0,  1,  2,  3};
+
+    inline float fastScore(const uchar* ptr, int stride, int threshold)
+    {
+        int v = ptr[0];
+        int t_hi = v + threshold;
+        int t_lo = v - threshold;
+
+        // quick rejection: check pixels 0, 4, 8, 12 first
+        int p0  = ptr[ circle_dy[0]  * stride + circle_dx[0]  ];
+        int p4  = ptr[ circle_dy[4]  * stride + circle_dx[4]  ];
+        int p8  = ptr[ circle_dy[8]  * stride + circle_dx[8]  ];
+        int p12 = ptr[ circle_dy[12] * stride + circle_dx[12] ];
+
+        // at least 2 of these 4 must be bright or dark for a valid corner
+        int bright = (p0 > t_hi) + (p4 > t_hi) + (p8 > t_hi) + (p12 > t_hi);
+        int dark   = (p0 < t_lo) + (p4 < t_lo) + (p8 < t_lo) + (p12 < t_lo);
+        if(bright < 2 && dark < 2)
+            return 0.0f;
+
+        // full 16-pixel circle test -- check for 9 consecutive
+        int circle[16];
+        for(int k = 0; k < 16; k++)
+            circle[k] = ptr[circle_dy[k] * stride + circle_dx[k]];
+
+        // check bright arc
+        float maxScore = 0.0f;
+        for(int k = 0; k < 16; k++)
+        {
+            int consec = 0;
+            float score = 0.0f;
+            for(int n = 0; n < 9; n++)
+            {
+                int idx = (k + n) % 16;
+                if(circle[idx] > t_hi)
+                {
+                    consec++;
+                    score += circle[idx] - v;
+                }
+                else break;
+            }
+            if(consec >= 9)
+                maxScore = max(maxScore, score);
+        }
+
+        // check dark arc
+        for(int k = 0; k < 16; k++)
+        {
+            int consec = 0;
+            float score = 0.0f;
+            for(int n = 0; n < 9; n++)
+            {
+                int idx = (k + n) % 16;
+                if(circle[idx] < t_lo)
+                {
+                    consec++;
+                    score += v - circle[idx];
+                }
+                else break;
+            }
+            if(consec >= 9)
+                maxScore = max(maxScore, score);
+        }
+
+        return maxScore;
+    }    
 
     static float IC_Angle(const Mat& image, Point2f pt,  const vector<int> & u_max)
     {
@@ -990,51 +1061,51 @@ namespace ORB_SLAM3
                 for(const auto& seed : seedKps)
                 {
                     prevKeyPointsCnt++;
+                    
                     const float cx = (seed.pt.x + du_level) / 1.2f;
                     const float cy = (seed.pt.y + dv_level) / 1.2f;
 
-                    int px0 = (int)round(cx) - HALF_PATCH;
-                    int py0 = (int)round(cy) - HALF_PATCH;
-                    int px1 = px0 + 2 * HALF_PATCH + 1;
-                    int py1 = py0 + 2 * HALF_PATCH + 1;
+                    int px = (int)round(cx);
+                    int py = (int)round(cy);
 
-                    px0 = max(px0, minBorderX);
-                    py0 = max(py0, minBorderY);
-                    px1 = min(px1, maxBorderX);
-                    py1 = min(py1, maxBorderY);
+                    float bestScore = 0.0f;
+                    int bestX = -1, bestY = -1;
 
-                    if ((px0 < minBorderX) || (px1 > maxBorderX) || 
-                        (py0 < minBorderY) || (py1 > maxBorderY))
-                        continue;
-
-                    if(px1 <= px0 || py1 <= py0)
-                        continue;
-
-                    vector<cv::KeyPoint> vKeysCell;
-                    FAST(mvImagePyramid[level].rowRange(py0, py1).colRange(px0, px1),
-                        vKeysCell, iniThFAST, true);
-                    
-                    if (vKeysCell.empty())
-                        FAST(mvImagePyramid[level].rowRange(py0, py1).colRange(px0, px1),
-                            vKeysCell, minThFAST, true);
-
-                    if(!vKeysCell.empty())
+                    // iterate only over testable pixels in neighborhood
+                    for(int dy = -HALF_PATCH + 3; dy <= HALF_PATCH - 3; dy++)
                     {
-                        // keep only best response within patch
-                        cv::KeyPoint* pBest = &vKeysCell[0];
-                        for(size_t k = 1; k < vKeysCell.size(); k++)
+                        for(int dx = -HALF_PATCH + 3; dx <= HALF_PATCH - 3; dx++)
                         {
-                            if(vKeysCell[k].response > pBest->response)
-                                pBest = &vKeysCell[k];
-                        }
+                            int x = px + dx;
+                            int y = py + dy;
 
-                        // shift to level j image coords and add border
-                        pBest->pt.x  += px0;
-                        pBest->pt.y  += py0;
-                        pBest->octave = level;
-                        pBest->size   = scaledPatchSize;
-                        keypoints.push_back(*pBest);
-                        extrKeyPointsCnt++;
+                            // bounds check
+                            if(x < minBorderX + 3 || x >= maxBorderX - 3 ||
+                            y < minBorderY + 3 || y >= maxBorderY - 3)
+                                continue;
+
+                            const uchar* ptr = mvImagePyramid[level].ptr<uchar>(y) + x;
+                            float score = fastScore(ptr,
+                                                    mvImagePyramid[level].step1(),
+                                                    iniThFAST);
+                            if(score > bestScore)
+                            {
+                                bestScore = score;
+                                bestX = x;
+                                bestY = y;
+                            }
+                        }
+                    }
+
+                    if(bestScore > 0.0f)
+                    {
+                        cv::KeyPoint kp;
+                        kp.pt.x   = bestX;
+                        kp.pt.y   = bestY;
+                        kp.response = bestScore;
+                        kp.octave   = level;
+                        kp.size     = 2.0f * HALF_PATCH * mvScaleFactor[level];
+                        allKeypoints[level].push_back(kp);
                     }
                 }
             }
